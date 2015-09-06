@@ -1,0 +1,143 @@
+#!/bin/bash
+# Author: Larissa Hahn
+# Date: 07-03-15
+# Course: CS344
+# Program 1 - stats
+
+#Declare variables:
+sum=0
+total=0
+average=0
+median=0
+
+#Detect if Filename present as parameter:
+if [ $# -eq 2 ]
+then
+	file=$2
+#Otherwise, passed without filename:
+elif [ $# -eq 1 ]
+then
+	file=/dev/stdin
+else
+	#Explain correct usage:
+	echo " Usage: stats {-rows|-cols} [file]" 1>&2
+	exit 1
+fi
+
+#Check for cases where file not readable:
+if [ ! -r "$file" ]
+then
+	echo " stats: cannot read $2" 1>&2
+	exit 1
+fi	
+
+#If paramater passed is for calculation by rows:
+if [[ $1 =~ ^-r ]]
+then
+	#Display Results of Calculation:
+	echo "Average Median"
+	while read -a rows
+	do
+		sortedArr=($(printf '%s\n' "${rows[@]}"|sort -n))
+ 		
+		#Calculate Average:
+		for i in "${rows[@]}"
+		do
+			sum=`expr $sum + $i`
+			total=`expr $total + 1`
+		done
+		average=`expr $sum / $total`
+		
+		#Rounding Up
+		mod=`expr $sum % $total`
+		rounding=`expr $mod \* 2`
+		if [[ "$rounding" -ge "$total" ]]
+		then
+			average=`expr $average + 1`
+		fi
+		
+		#Calculate Median:
+		count=${#sortedArr[@]}
+		idx=`expr $count / 2`
+		median=${sortedArr[$idx]}
+	
+		#Print row data to console:	
+		echo "$average	$median"
+		
+		#Next row:
+		total=0
+		sum=0
+		average=0
+
+	done < "${2:-/dev/stdin}"
+
+#If parameter passed in is for calculation by columns:
+elif [[ $1 =~ ^-c ]]
+then
+	#Declare variables:
+	index=0
+	colSum=()
+	
+	#Get Number of Columns:
+	while read -a row
+	do
+		totalCol=0
+		for i in "${row[@]}"
+		do
+			totalCol=`expr $totalCol + 1`
+		done
+	done < "${2:-/dev/stdin}"
+
+	#Print Median Header:
+	echo -e "Medians:"
+
+	#Read Columns:
+	while [[ "$totalCol" -gt 0 ]]
+	do
+		totalRows=0
+		colNum=()
+
+		while read -a rows
+		do
+			colSum[$index]=`expr ${colSum[index]} + ${rows[index]}`
+			totalRows=`expr $totalRows + 1`
+			colNum+=(${rows[index]})
+		done < "${2:-/dev/stdin}"
+
+		#Calculate  Medians:
+		medianArr=($(printf '%s\n' "${colNum[@]}"|sort -n))
+		total=${#medianArr[@]}
+		ind=`expr $total / 2`
+		median=${medianArr[$ind]}
+	
+		#Display Medians:
+		echo -ne "$median	"
+	
+		#Next Column:
+		index=`expr $index + 1`
+		totalCol=`expr $totalCol - 1`
+	done
+
+	#Calculate Averages:	
+        echo -e "\nAverages:"
+	
+	for i in "${colSum[@]}"
+	do
+		average=`expr $i / $totalRows`
+		mod=`expr $i % $totalRows`
+		rounding=`expr $mod \* 2`
+
+		if [[ "$rounding" -ge "$totalRows" ]]
+		then
+			average=`expr $average + 1`
+		fi
+
+		#Display Averages:
+		echo -ne "$average	"
+	done
+	echo -e "\n" #clean End of File
+else
+	#Explain correct usage:
+	echo " Usage: stats {-rows|-cols} [file]" 1>&2
+	exit 1
+fi
